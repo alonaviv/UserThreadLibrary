@@ -1,0 +1,2 @@
+#define FUNCTION_FAIL -1
+#define FUNCTION_SUCCESS 0

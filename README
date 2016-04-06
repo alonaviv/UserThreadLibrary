@@ -1,0 +1,91 @@
+# Created for OS course in the Hebrew University
+# Author: Alon Aviv
+# Date: March 2016
+
+
+# Description: 
+ * User level thread library. Scheduling is implemented using a "round robin"
+ * algorithm. Each running thread receives a predefined quantum of time, after
+ * which it is preempted and put in the back of a "ready queue" - to be run again
+ * when its turn arrives. Threads may be blocked, resumed, put to sleep, and 
+ * terminated using the library fuctions.
+
+# Contents:
+	* uthreads.h - Library header
+	* uthreads.cpp - Library file of uthreads.h
+	* thread_classes.h - Defining the classes neccesary for the uthreads.cpp 
+      implementation
+	* thread_classes.cpp - Implementation of thread_classes.h
+	* general_macros - A few macro definitions required by all files
+	* Makefile - Creates a static library from the attached files, makes the
+	* ex2 tar, and cleans up.
+	* Driver.cpp - Driver for testing library
+
+# Remarks:
+
+Data Structures and classes:
+The library uses a few data structures in order to control the scheduling 
+and execution of the created threads. Some of the data structures are wrapped
+by classes providing easy and safe access. Here is a short definition of each 
+structure and class, and the relationshipd between them:
+
+* Thread object: Each new thread is associate with a unique
+Thread object containing all relevant thread information: id, stack pointer, 
+jump buffer, current state, quantum data and so forth. The classes's
+constructor creates the jump buffer and stack pointer, and the destructor 
+frees these resources.
+
+* Thread collection: Each new thread object pointer is inserted into the
+collection (a hash map wrapped by a class). The collection stores and
+distributes the pointer of active threads. Only once a thread is terminated 
+is its pointer removed from the collection.
+
+* Ready queue: The ready queue (an std::list wrappped by a class), holds 
+pointers to all threads currently in the READY state. Thus thread pointers 
+are popped from the end and inserted to the beginning of the list,
+thus implementing the "round robin" scheduling.
+
+*Timer: The timer is a class that initializes the OS virtual timer with a
+set value, and allows resetting of the timer. The timer runns throughout the
+duration of the program
+
+*Sleep manager: The sleep manager (a list wrapped by a class) holds pointers 
+to all threads in the SLEEP state. Provides functions for waking up sleepers,
+decreasing their sleep time, and inserting sleepers. A sleeper can only be 
+removed if the manager has awoken him, when his time is up.
+
+*Id distributor: The id distrubutor (a bitset wrapped by a class) holds 
+identifiers marking which of the set number of possible id numbers is 
+currently in play. It distrubutes the lowest available id on request.
+
+Library's method of operation:
+
+The library operates by holding a global pointer to the current running thread
+at all times. Whenever a library function is called, or the timer goes off,
+the library uses the aformentioned classes to perform the correct action,
+and if neccessary calls the scheduler in order to preempt the current 
+thread and put a new one into play. In order to avoid signal races, the 
+virtual alarm signal is masked at the start of each library call, and
+released at the end of said call.
+
+Important Helper functions:
+
+* scheduler: The scheduler is called for any context switch between threads.
+It takes care of sleepers (using the sleep manager), poppes the next thread 
+in line from the ready queue, and calls the switchThreads function in order
+to perform the actual switch. 
+Note: since in the case of a thread being preepmted the sleepers are
+inserted into the ready list before the running thread, in this case the
+scheduler is in charge of inserting the running thread into the ready 
+list (while in other cases the library functions take care of this action).
+
+* switchThreads: Performs the thread switch action, using the buffers stored
+in the thread classes. In order to allow the new thread to utilize an entire
+quanta of time, the function blocks any pending alarm signals, so the new 
+thread won't be preempted by a signal that has been set off during the context
+switch.
+
+*quantumHandler: Is called for every alarm signal. Calls the scheduler in 
+order to preempt the running thread.
+
+
